@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  @apply bg-gray-50 text-gray-900 font-sans;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.kanban-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.kanban-scroll::-webkit-scrollbar-track {
+  @apply bg-gray-100 rounded;
+}
+.kanban-scroll::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded;
+}
