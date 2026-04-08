@@ -1,64 +1,203 @@
-const FIELDS = [
-  { value: "origin", label: "Origin / Source", type: "enum" },
-  { value: "first_contact_date", label: "First Contact Date", type: "date" },
-  { value: "landing_page_id", label: "Landing Page ID", type: "string" },
+import { useState, useEffect, useRef } from "react";
+
+const DEFAULT_FIELDS = [
+  { value: "origin", label: "Channel", type: "enum", options: [] },
+  { value: "first_contact_date", label: "First Contact Date", type: "date", options: null },
+  { value: "landing_page_id", label: "Landing Page", type: "text", options: null },
 ];
 
-const OPERATORS_ENUM = [
-  { value: "in", label: "is one of" },
-  { value: "not_in", label: "is not one of" },
+const OPERATORS_CATEGORICAL = [
+  { value: "in", label: "equals" },
+  { value: "not_in", label: "not equals" },
+  { value: "contains", label: "contains" },
+  { value: "not_contains", label: "not contains" },
+];
+const OPERATORS_TEXT = [
   { value: "eq", label: "equals" },
   { value: "neq", label: "not equals" },
+  { value: "contains", label: "contains" },
+  { value: "not_contains", label: "not contains" },
 ];
-
 const OPERATORS_DATE = [
   { value: "after", label: "after" },
   { value: "before", label: "before" },
   { value: "eq", label: "on" },
 ];
-
-const OPERATORS_STRING = [
-  { value: "eq", label: "equals" },
-  { value: "neq", label: "not equals" },
-  { value: "in", label: "contains one of" },
+const OPERATORS_NUMBER = [
+  { value: "eq", label: "=" },
+  { value: "gt", label: ">" },
+  { value: "gte", label: "≥" },
+  { value: "lt", label: "<" },
+  { value: "lte", label: "≤" },
+  { value: "neq", label: "≠" },
 ];
 
-function getOperators(type) {
-  if (type === "enum") return OPERATORS_ENUM;
+function getOperators(type, hasOptions) {
   if (type === "date") return OPERATORS_DATE;
-  return OPERATORS_STRING;
+  if (type === "number") return OPERATORS_NUMBER;
+  if (hasOptions) return OPERATORS_CATEGORICAL;
+  return OPERATORS_TEXT;
 }
 
-// Mini bar showing proportion
-function CountBar({ count, max, selected }) {
-  const pct = max > 0 ? Math.max((count / max) * 100, 4) : 0;
+// Power BI-style multi-select slicer — stays open, search + checkboxes
+function MultiSelectSlicer({ options, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef(null);
+
+  const selected = Array.isArray(value) ? value : [];
+  const filtered = query
+    ? options.filter((o) => o.value.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  useEffect(() => {
+    if (!open) return;
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  function toggle(val) {
+    onChange(
+      selected.includes(val) ? selected.filter((v) => v !== val) : [...selected, val]
+    );
+  }
+
   return (
-    <div className="h-1 mt-1 rounded-full bg-gray-200 overflow-hidden">
-      <div
-        className={`h-full rounded-full transition-all ${selected ? "bg-blue-500" : "bg-gray-400"}`}
-        style={{ width: `${pct}%` }}
-      />
+    <div className="relative flex-1 min-w-0" ref={ref}>
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white flex items-center gap-1.5 text-left min-h-[34px]"
+      >
+        {selected.length === 0 ? (
+          <span className="text-gray-400 flex-1 text-sm">Select values…</span>
+        ) : (
+          <div className="flex flex-wrap gap-1 flex-1">
+            {selected.map((v) => (
+              <span
+                key={v}
+                className="inline-flex items-center gap-0.5 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium"
+              >
+                {v}
+                <button
+                  type="button"
+                  onMouseDown={(e) => { e.stopPropagation(); toggle(v); }}
+                  className="hover:text-blue-900 leading-none"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <span className="text-gray-400 text-xs shrink-0">{open ? "▴" : "▾"}</span>
+      </button>
+
+      {/* Dropdown — stays open */}
+      {open && (
+        <div className="absolute z-30 top-full mt-1 left-0 w-64 bg-white border border-gray-200 rounded-xl shadow-lg">
+          {/* Search */}
+          <div className="p-2 border-b border-gray-100">
+            <input
+              type="text"
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search…"
+              className="w-full text-sm px-2.5 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400"
+            />
+          </div>
+
+          {/* Options list with checkboxes */}
+          <div className="max-h-52 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="text-xs text-gray-400 px-3 py-3 text-center">No matches</p>
+            ) : (
+              filtered.map((opt) => {
+                const isSelected = selected.includes(opt.value);
+                return (
+                  <label
+                    key={opt.value}
+                    className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gray-50 ${
+                      isSelected ? "bg-blue-50" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggle(opt.value)}
+                      className="accent-blue-600 shrink-0"
+                    />
+                    <span
+                      className={`text-sm flex-1 truncate ${
+                        isSelected ? "font-medium text-blue-700" : "text-gray-700"
+                      }`}
+                    >
+                      {opt.value}
+                    </span>
+                    {opt.count != null && (
+                      <span className="text-xs text-gray-400 shrink-0">
+                        {opt.count.toLocaleString()}
+                      </span>
+                    )}
+                  </label>
+                );
+              })
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-gray-100 px-3 py-2 flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              {selected.length > 0 ? `${selected.length} selected` : "None selected"}
+            </span>
+            {selected.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="text-xs text-red-500 hover:text-red-700"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-export default function RuleRow({ condition, onChange, onRemove, fieldValues }) {
-  const fieldDef = FIELDS.find((f) => f.value === condition.field) || FIELDS[0];
-  const operators = getOperators(fieldDef.type);
-  const isMulti = condition.operator === "in" || condition.operator === "not_in";
+export default function RuleRow({ condition, onChange, onRemove, fieldValues, fields }) {
+  const fieldList = fields?.length ? fields : DEFAULT_FIELDS;
+  const fieldDef = fieldList.find((f) => f.value === condition.field) || fieldList[0];
 
-  // Real origin options from DB, or fallback
-  const originOptions = fieldValues?.origins || [];
-  const maxOriginCount = Math.max(...originOptions.map((o) => o.count), 1);
+  const options =
+    fieldDef.value === "origin" && fieldValues?.origins
+      ? fieldValues.origins
+      : (fieldDef.options || []);
+
+  const hasOptions = options.length > 0;
+  const operators = getOperators(fieldDef.type, hasOptions);
 
   function setField(val) {
-    const def = FIELDS.find((f) => f.value === val) || FIELDS[0];
-    const ops = getOperators(def.type);
-    onChange({ field: val, operator: ops[0].value, value: def.type === "enum" ? [] : "" });
+    const def = fieldList.find((f) => f.value === val) || fieldList[0];
+    const opts = def.value === "origin" && fieldValues?.origins
+      ? fieldValues.origins
+      : (def.options || []);
+    const ops = getOperators(def.type, opts.length > 0);
+    const defaultOp = ops[0].value;
+    onChange({ field: val, operator: defaultOp, value: defaultOp === "in" ? [] : "" });
   }
 
   function setOperator(op) {
-    const wasMulti = isMulti;
+    const wasMulti = condition.operator === "in" || condition.operator === "not_in";
     const willBeMulti = op === "in" || op === "not_in";
     onChange({
       ...condition,
@@ -67,32 +206,25 @@ export default function RuleRow({ condition, onChange, onRemove, fieldValues }) 
     });
   }
 
-  function toggleValue(opt) {
-    const current = Array.isArray(condition.value) ? condition.value : [];
-    const next = current.includes(opt)
-      ? current.filter((v) => v !== opt)
-      : [...current, opt];
-    onChange({ ...condition, value: next });
-  }
-
-  const selectedValues = Array.isArray(condition.value) ? condition.value : [];
+  const isMulti = condition.operator === "in" || condition.operator === "not_in";
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
-      {/* Field + Operator row */}
-      <div className="flex items-center gap-2 flex-wrap mb-3">
+    <div className="bg-white rounded-xl border border-gray-200 p-3">
+      <div className="flex items-start gap-2">
+        {/* Field */}
         <select
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white font-medium"
+          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white font-medium shrink-0"
           value={condition.field}
           onChange={(e) => setField(e.target.value)}
         >
-          {FIELDS.map((f) => (
+          {fieldList.map((f) => (
             <option key={f.value} value={f.value}>{f.label}</option>
           ))}
         </select>
 
+        {/* Operator */}
         <select
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white"
+          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white shrink-0"
           value={condition.operator}
           onChange={(e) => setOperator(e.target.value)}
         >
@@ -101,80 +233,47 @@ export default function RuleRow({ condition, onChange, onRemove, fieldValues }) 
           ))}
         </select>
 
+        {/* Value */}
+        {fieldDef.type === "date" ? (
+          <input
+            type="date"
+            className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white"
+            value={typeof condition.value === "string" ? condition.value : ""}
+            onChange={(e) => onChange({ ...condition, value: e.target.value })}
+          />
+        ) : fieldDef.type === "number" ? (
+          <input
+            type="number"
+            className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white"
+            value={typeof condition.value === "string" ? condition.value : ""}
+            onChange={(e) => onChange({ ...condition, value: e.target.value })}
+            placeholder="Enter number…"
+          />
+        ) : isMulti && hasOptions ? (
+          <MultiSelectSlicer
+            options={options}
+            value={condition.value}
+            onChange={(val) => onChange({ ...condition, value: val })}
+          />
+        ) : (
+          <input
+            type="text"
+            className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white"
+            value={typeof condition.value === "string" ? condition.value : ""}
+            onChange={(e) => onChange({ ...condition, value: e.target.value })}
+            placeholder="Type to search…"
+          />
+        )}
+
+        {/* Remove */}
         <button
           type="button"
           onClick={onRemove}
-          className="ml-auto text-gray-300 hover:text-red-500 text-lg leading-none"
-          title="Remove condition"
+          className="shrink-0 text-gray-300 hover:text-red-500 text-lg leading-none pt-1"
         >
           ✕
         </button>
       </div>
-
-      {/* Value picker */}
-      {fieldDef.type === "enum" && isMulti ? (
-        <div>
-          <p className="text-xs text-gray-400 mb-2">
-            Click to select values — showing counts from your leads
-            {selectedValues.length > 0 && (
-              <span className="ml-2 text-blue-600 font-medium">{selectedValues.length} selected</span>
-            )}
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {originOptions.length > 0 ? originOptions.map((opt) => {
-              const selected = selectedValues.includes(opt.value);
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => toggleValue(opt.value)}
-                  className={`text-left rounded-lg border px-3 py-2 transition-all ${
-                    selected
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-white"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs font-medium truncate ${selected ? "text-blue-700" : "text-gray-700"}`}>
-                      {opt.value}
-                    </span>
-                    <span className={`text-xs ml-1 shrink-0 ${selected ? "text-blue-500" : "text-gray-400"}`}>
-                      {opt.count.toLocaleString()}
-                    </span>
-                  </div>
-                  <CountBar count={opt.count} max={maxOriginCount} selected={selected} />
-                </button>
-              );
-            }) : (
-              <p className="text-xs text-gray-400 col-span-3">No leads imported yet</p>
-            )}
-          </div>
-        </div>
-      ) : fieldDef.type === "date" ? (
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white"
-            value={typeof condition.value === "string" ? condition.value : ""}
-            onChange={(e) => onChange({ ...condition, value: e.target.value })}
-            min={fieldValues?.date_range?.min || undefined}
-            max={fieldValues?.date_range?.max || undefined}
-          />
-          {fieldValues?.date_range?.min && (
-            <span className="text-xs text-gray-400">
-              Data: {fieldValues.date_range.min} → {fieldValues.date_range.max}
-            </span>
-          )}
-        </div>
-      ) : (
-        <input
-          type="text"
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white w-full"
-          value={typeof condition.value === "string" ? condition.value : ""}
-          onChange={(e) => onChange({ ...condition, value: e.target.value })}
-          placeholder="Enter value…"
-        />
-      )}
     </div>
   );
 }

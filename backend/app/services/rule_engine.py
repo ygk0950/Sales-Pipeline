@@ -14,18 +14,24 @@ ADVANCEABLE = ["MQL", "SQL", "Opportunity"]
 
 
 def _get_lead_field(lead: Lead, field: str):
-    return getattr(lead, field, None)
+    val = getattr(lead, field, None)
+    if val is not None:
+        return val
+    # Fall back to extra_data JSON for custom fields
+    if lead.extra_data and field in lead.extra_data:
+        return lead.extra_data[field]
+    return None
 
 
 def _parse_date(value) -> Optional[date]:
     if isinstance(value, date):
         return value
-    if isinstance(value, str):
-        for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y"]:
-            try:
-                return datetime.strptime(value, fmt).date()
-            except ValueError:
-                continue
+    if isinstance(value, str) and value.strip():
+        try:
+            from dateutil.parser import parse as dateutil_parse
+            return dateutil_parse(value.strip(), dayfirst=False).date()
+        except Exception:
+            pass
     return None
 
 
@@ -70,15 +76,83 @@ def evaluate_condition(lead: Lead, cond: RuleCondition) -> bool:
         rv = _parse_date(rule_val)
         fv = field_val if isinstance(field_val, date) else _parse_date(str(field_val))
         return fv is not None and rv is not None and fv < rv
+    elif op == "contains":
+        if field_val is None:
+            return False
+        return str(rule_val).lower() in str(field_val).lower()
+    elif op == "not_contains":
+        if field_val is None:
+            return True
+        return str(rule_val).lower() not in str(field_val).lower()
     return False
+
+
+_SKIP_KEYS = {"_join"}
+
+
+def _eval_single(lead: Lead, item: dict) -> bool:
+    if "field" in item:
+        return evaluate_condition(lead, RuleCondition(**{k: v for k, v in item.items() if k not in _SKIP_KEYS}))
+    if "conditions" in item:
+        return _evaluate_block(lead, item)
+    return True
+
+
+def _evaluate_block(lead: Lead, block: dict) -> bool:
+    """Evaluate conditions within a block using block-level logic."""
+    conditions = block.get("conditions", [])
+    if not conditions:
+        return True
+    logic = block.get("logic", "and")
+    results = [_eval_single(lead, c) for c in conditions]
+    return any(results) if logic == "or" else all(results)
+
+
+def _evaluate_node(lead: Lead, node) -> bool:
+    """Evaluate a rule node — supports blocks format, legacy list, and legacy dict."""
+    if isinstance(node, list):
+        if not node:
+            return True
+        # Blocks format: list of {_join, conditions:[...]}
+        if isinstance(node[0], dict) and "conditions" in node[0]:
+            result = _evaluate_block(lead, node[0])
+            for block in node[1:]:
+                join = block.get("_join", "and")
+                val = _evaluate_block(lead, block)
+                result = (result or val) if join == "or" else (result and val)
+            return result
+        # Legacy flat list with per-condition _join
+        result = _eval_single(lead, node[0])
+        for item in node[1:]:
+            join = item.get("_join", "and")
+            val = _eval_single(lead, item)
+            result = (result or val) if join == "or" else (result and val)
+        return result
+
+    if isinstance(node, dict) and "items" in node:
+        # Legacy {logic, items} format
+        items = node.get("items", [])
+        if not items:
+            return True
+        default_join = node.get("logic", "and")
+        result = _eval_single(lead, items[0])
+        for item in items[1:]:
+            join = item.get("_join", default_join)
+            val = _eval_single(lead, item)
+            result = (result or val) if join == "or" else (result and val)
+        return result
+
+    if isinstance(node, dict) and "field" in node:
+        return _eval_single(lead, node)
+
+    return True
 
 
 def evaluate_rule(lead: Lead, rule: Rule) -> bool:
     try:
-        conditions = [RuleCondition(**c) for c in json.loads(rule.conditions)]
+        return _evaluate_node(lead, json.loads(rule.conditions))
     except Exception:
         return False
-    return all(evaluate_condition(lead, c) for c in conditions)
 
 
 def evaluate_all(db: Session) -> dict:

@@ -85,7 +85,7 @@ export default function LeadDetail() {
         {/* Properties */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
           <div>
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Origin</p>
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Channel</p>
             <p className="text-sm text-gray-800 mt-0.5">{lead.origin || "—"}</p>
           </div>
           <div>
@@ -96,6 +96,12 @@ export default function LeadDetail() {
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Landing Page</p>
             <p className="text-sm text-gray-800 mt-0.5 font-mono truncate">{lead.landing_page_id?.slice(0, 12) || "—"}…</p>
           </div>
+          {lead.extra_data && Object.entries(lead.extra_data).map(([key, val]) => (
+            <div key={key}>
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{key.replace(/_/g, " ")}</p>
+              <p className="text-sm text-gray-800 mt-0.5 truncate">{val || "—"}</p>
+            </div>
+          ))}
         </div>
       </div>
 

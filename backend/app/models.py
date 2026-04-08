@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime, Date,
-    ForeignKey, Text
+    ForeignKey, Text, JSON
 )
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -27,6 +27,7 @@ class Lead(Base):
     first_contact_date = Column(Date, nullable=True)
     landing_page_id = Column(String(64), nullable=True)
     origin = Column(String(50), nullable=True)
+    extra_data = Column(JSON, nullable=True, default=None)
     stage_id = Column(Integer, ForeignKey("pipeline_stages.id"), nullable=False)
     qualified_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
