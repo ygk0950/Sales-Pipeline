@@ -177,7 +177,7 @@ export default function StageNode({
           <button
             type="button"
             onClick={() => onAddRule(stage.id)}
-            className="w-full text-[10px] text-slate-400 hover:text-blue-600 font-medium flex items-center justify-center gap-1 border border-dashed border-slate-200 hover:border-blue-300 rounded py-1 hover:bg-blue-50 transition-colors"
+            className="w-full text-[10px] text-blue-600 font-semibold flex items-center justify-center gap-1 border border-dashed border-blue-200 bg-blue-50 rounded py-1.5 hover:bg-blue-100 transition-colors"
           >
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Rule

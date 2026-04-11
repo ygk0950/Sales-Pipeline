@@ -61,15 +61,15 @@ export default function LeadDetail() {
     return (
       <div className="p-6 text-center">
         <p className="text-gray-500">Lead not found.</p>
-        <Link to="/pipeline" className="text-blue-600 text-sm mt-2 inline-block">← Back to Pipeline</Link>
+        <Link to="/" className="text-blue-600 text-sm mt-2 inline-block">← Back to Workspace</Link>
       </div>
     );
   }
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <Link to="/pipeline" className="text-sm text-gray-400 hover:text-blue-600 mb-4 inline-block">
-        ← Back to Pipeline
+      <Link to="/" className="text-sm text-gray-400 hover:text-blue-600 mb-4 inline-block">
+        ← Back to Workspace
       </Link>
 
       {/* Header */}

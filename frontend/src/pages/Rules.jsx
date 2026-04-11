@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useQuery } from "@tanstack/react-query";
 import { useRules, useCreateRule, useUpdateRule, useDeleteRule } from "../hooks/useRules";
@@ -23,7 +24,7 @@ function DataOverview({ fieldValues, onQuickRule }) {
 
       {total === 0 ? (
         <p className="text-xs text-gray-400 text-center py-4">
-          No leads yet. <a href="/upload" className="text-blue-600 underline">Upload leads first &rarr;</a>
+          No leads yet. <Link to="/upload" className="text-blue-600 underline">Upload leads first &rarr;</Link>
         </p>
       ) : (
         <>

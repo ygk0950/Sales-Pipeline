@@ -26,6 +26,10 @@ export default function Pipeline() {
   const deleteRule      = useDeleteRule();
   const evaluate        = useEvaluateRules();
   const evaluateStage   = useEvaluateStageRules();
+  const totalLeads      = fieldValues?.total ?? 0;
+  const activeRules     = rules?.filter((rule) => rule.is_active).length ?? 0;
+  const stagesWithRules  = new Set((rules || []).map((rule) => rule.target_stage_id)).size;
+  const totalStages     = pipelineData?.columns?.length ?? stages?.length ?? 0;
 
   // UI state
   const [running,           setRunning]           = useState(false);
@@ -114,16 +118,12 @@ export default function Pipeline() {
   return (
     <div className="p-6 h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pipeline</h1>
-          <p className="text-sm text-gray-400 mt-0.5">
-            Click a stage to manage its rules &mdash; run the pipeline to advance leads
-          </p>
-        </div>
+      <div className="mb-6 space-y-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Pipeline</h1>
+          </div>
 
-        <div className="flex items-center gap-3">
-          {/* Run Pipeline */}
           <button
             onClick={handleRunRules}
             disabled={running}
@@ -150,6 +150,13 @@ export default function Pipeline() {
               </>
             )}
           </button>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <StatChip label="Total leads" value={totalLeads.toLocaleString()} tone="blue" />
+          <StatChip label="Active rules" value={activeRules.toString()} tone="violet" />
+          <StatChip label="Stages with rules" value={stagesWithRules.toString()} tone="amber" />
+          <StatChip label="Pipeline stages" value={totalStages.toString()} tone="gray" />
         </div>
       </div>
 
@@ -192,6 +199,22 @@ export default function Pipeline() {
 
       {/* Upload modal */}
       <UploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} />
+    </div>
+  );
+}
+
+function StatChip({ label, value, tone = "gray" }) {
+  const tones = {
+    blue: "bg-blue-50 text-blue-700 border-blue-100",
+    violet: "bg-violet-50 text-violet-700 border-violet-100",
+    amber: "bg-amber-50 text-amber-700 border-amber-100",
+    gray: "bg-gray-50 text-gray-700 border-gray-200",
+  };
+
+  return (
+    <div className={`min-w-40 rounded-xl border px-4 py-3 ${tones[tone]}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">{label}</p>
+      <p className="mt-1 text-lg font-bold leading-none">{value}</p>
     </div>
   );
 }

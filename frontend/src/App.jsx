@@ -1,10 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import Layout from "./components/Layout";
-import Dashboard from "./pages/Dashboard";
-import Pipeline from "./pages/Pipeline";
-import Upload from "./pages/Upload";
+import Workspace from "./pages/Workspace";
 import LeadDetail from "./pages/LeadDetail";
 
 const queryClient = new QueryClient({
@@ -22,10 +20,10 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="pipeline" element={<Pipeline />} />
-            <Route path="upload" element={<Navigate to="/pipeline" replace />} />
-            <Route path="rules" element={<Navigate to="/pipeline" replace />} />
+            <Route index element={<Workspace initialSection="dashboard" />} />
+            <Route path="pipeline" element={<Workspace initialSection="pipeline" />} />
+            <Route path="upload" element={<Workspace initialSection="upload" />} />
+            <Route path="rules" element={<Workspace initialSection="rules" />} />
             <Route path="leads/:id" element={<LeadDetail />} />
           </Route>
         </Routes>
