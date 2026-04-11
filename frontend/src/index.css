@@ -23,3 +23,48 @@ body {
 .kanban-scroll::-webkit-scrollbar-thumb {
   @apply bg-gray-300 rounded;
 }
+
+/* Pipeline connector arrows */
+.connector-arrow {
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 8px solid #d1d5db;
+}
+.connector-arrow.active {
+  border-left-color: #3b82f6;
+}
+
+/* Refined small connector for professional pipeline */
+.connector-arrow-sm {
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid #cbd5e1;
+}
+.connector-arrow-sm.active-sm {
+  border-left-color: #60a5fa;
+}
+.connector-arrow-sm.neutral-sm {
+  border-left-color: #cbd5e1;
+}
+
+/* Flow pulse animation for running rules */
+@keyframes flowPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+.flow-pulse {
+  animation: flowPulse 1s ease-in-out infinite;
+}
+
+/* Drawer slide-in */
+.drawer-slide {
+  animation: drawerSlideIn 250ms ease-out;
+}
+@keyframes drawerSlideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}

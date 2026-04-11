@@ -11,7 +11,7 @@ from ..schemas import (
     RuleCreate, RuleUpdate, RuleOut, RuleCondition, EvaluateResult,
     PreviewResult, StageCount, KanbanLeadCard, PipelineStageOut,
 )
-from ..services.rule_engine import evaluate_all, preview_rule, evaluate_condition, _evaluate_node
+from ..services.rule_engine import evaluate_all, evaluate_for_stage, preview_rule, evaluate_condition, _evaluate_node
 from ..services.rule_engine import evaluate_rule as evaluate_rule_fn
 
 router = APIRouter(prefix="/api/rules", tags=["rules"])
@@ -118,8 +118,8 @@ def delete_rule(rule_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/evaluate", response_model=EvaluateResult)
-def run_evaluation(db: Session = Depends(get_db)):
-    moved = evaluate_all(db)
+def run_evaluation(stage_id: int | None = None, db: Session = Depends(get_db)):
+    moved = evaluate_for_stage(db, stage_id) if stage_id else evaluate_all(db)
     stages = {s.id: s.name for s in db.query(PipelineStage).all()}
     by_stage = [
         StageCount(stage_id=sid, stage_name=stages.get(sid, "Unknown"), count=cnt)

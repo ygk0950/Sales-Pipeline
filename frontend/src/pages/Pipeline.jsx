@@ -1,111 +1,197 @@
 import { useState } from "react";
-import { DragDropContext } from "@hello-pangea/dnd";
 import toast from "react-hot-toast";
-import { usePipeline } from "../hooks/usePipeline";
-import { useUpdateLeadStage } from "../hooks/useLeads";
-import { useEvaluateRules } from "../hooks/useRules";
-import KanbanColumn from "../components/KanbanColumn";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { usePipeline, useStages } from "../hooks/usePipeline";
+import { useRules, useCreateRule, useUpdateRule, useDeleteRule, useEvaluateRules, useEvaluateStageRules } from "../hooks/useRules";
+import PipelineFlow from "../components/pipeline/PipelineFlow";
+import RuleDrawer from "../components/pipeline/RuleDrawer";
+import UploadModal from "../components/pipeline/UploadModal";
+import api from "../api/client";
 
 export default function Pipeline() {
-  const { data, isLoading } = usePipeline();
-  const updateStage = useUpdateLeadStage();
-  const evaluate = useEvaluateRules();
-  const qc = useQueryClient();
-  const [running, setRunning] = useState(false);
+  const { data: pipelineData, isLoading } = usePipeline();
+  const { data: rules }          = useRules();
+  const { data: stages }         = useStages();
+  const { data: fieldValues }    = useQuery({
+    queryKey: ["field-values"],
+    queryFn: () => api.get("/api/dashboard/field-values").then((r) => r.data),
+  });
+  const { data: availableFields } = useQuery({
+    queryKey: ["lead-fields"],
+    queryFn: () => api.get("/api/leads/fields").then((r) => r.data),
+  });
 
-  async function onDragEnd(result) {
-    if (!result.destination) return;
-    const sourceStageId = parseInt(result.source.droppableId);
-    const destStageId = parseInt(result.destination.droppableId);
-    if (sourceStageId === destStageId) return;
+  const createRule      = useCreateRule();
+  const updateRule      = useUpdateRule();
+  const deleteRule      = useDeleteRule();
+  const evaluate        = useEvaluateRules();
+  const evaluateStage   = useEvaluateStageRules();
 
-    const leadId = parseInt(result.draggableId);
+  // UI state
+  const [running,           setRunning]           = useState(false);
+  const [completed,         setCompleted]         = useState(false);
+  const [runningStageId,    setRunningStageId]    = useState(null);
+  const [completedStageIds, setCompletedStageIds] = useState(new Set());
+  const [drawerOpen,   setDrawerOpen]   = useState(false);
+  const [editingRule,  setEditingRule]  = useState(null);
+  const [targetStageId, setTargetStageId] = useState(null);
+  const [uploadOpen,   setUploadOpen]   = useState(false);
 
-    // Optimistic update
-    qc.setQueryData(["pipeline"], (old) => {
-      if (!old) return old;
-      const columns = old.columns.map((col) => {
-        if (col.stage.id === sourceStageId) {
-          return {
-            ...col,
-            leads: col.leads.filter((l) => l.id !== leadId),
-            total: col.total - 1,
-          };
-        }
-        if (col.stage.id === destStageId) {
-          const movedLead = old.columns
-            .find((c) => c.stage.id === sourceStageId)
-            ?.leads.find((l) => l.id === leadId);
-          return movedLead
-            ? { ...col, leads: [movedLead, ...col.leads], total: col.total + 1 }
-            : col;
-        }
-        return col;
-      });
-      return { ...old, columns };
-    });
+  // ── Handlers ─────────────────────────────────────────────────────────────
 
+  function handleAddRule(stageId) {
+    setEditingRule(null);
+    setTargetStageId(stageId);
+    setDrawerOpen(true);
+  }
+
+  function handleEditRule(rule) {
+    setEditingRule(rule);
+    setTargetStageId(rule.target_stage_id);
+    setDrawerOpen(true);
+  }
+
+  async function handleDeleteRule(ruleId) {
+    if (!confirm("Delete this rule?")) return;
     try {
-      await updateStage.mutateAsync({ id: leadId, stage_id: destStageId });
-      toast.success("Lead moved");
+      await deleteRule.mutateAsync(ruleId);
+      toast.success("Rule deleted");
     } catch {
-      toast.error("Failed to move lead");
-      qc.invalidateQueries({ queryKey: ["pipeline"] });
+      toast.error("Failed to delete rule");
+    }
+  }
+
+  async function handleSaveRule(data) {
+    try {
+      if (editingRule) {
+        await updateRule.mutateAsync({ id: editingRule.id, ...data });
+        toast.success("Rule updated");
+      } else {
+        await createRule.mutateAsync(data);
+        toast.success("Rule created");
+      }
+      setDrawerOpen(false);
+      setEditingRule(null);
+    } catch {
+      toast.error("Failed to save rule");
+    }
+  }
+
+  async function handleRunStage(stageId) {
+    setRunningStageId(stageId);
+    setCompletedStageIds((s) => { const n = new Set(s); n.delete(stageId); return n; });
+    try {
+      const result = await evaluateStage.mutateAsync(stageId);
+      toast.success(`${result.leads_moved} lead${result.leads_moved !== 1 ? "s" : ""} moved`);
+      setCompletedStageIds((s) => new Set([...s, stageId]));
+      setTimeout(() => setCompletedStageIds((s) => { const n = new Set(s); n.delete(stageId); return n; }), 3000);
+    } catch {
+      toast.error("Failed to run stage");
+    } finally {
+      setRunningStageId(null);
     }
   }
 
   async function handleRunRules() {
     setRunning(true);
+    setCompleted(false);
     try {
       const result = await evaluate.mutateAsync();
-      toast.success(`Rules evaluated — ${result.leads_moved} leads moved`);
+      toast.success(`Pipeline run \u2014 ${result.leads_moved} leads moved`);
+      setCompleted(true);
+      setTimeout(() => setCompleted(false), 3000);
     } catch {
-      toast.error("Failed to run rules");
+      toast.error("Failed to run pipeline");
     } finally {
       setRunning(false);
     }
   }
 
+  const targetStageName = stages?.find((s) => s.id === targetStageId)?.name || "";
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div className="p-6 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-bold text-gray-900">Pipeline</h1>
-        <button
-          onClick={handleRunRules}
-          disabled={running}
-          className="flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors"
-        >
-          {running ? (
-            <>
-              <span className="animate-spin">⟳</span> Running…
-            </>
-          ) : (
-            <>⚡ Run Rules</>
-          )}
-        </button>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Pipeline</h1>
+          <p className="text-sm text-gray-400 mt-0.5">
+            Click a stage to manage its rules &mdash; run the pipeline to advance leads
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Run Pipeline */}
+          <button
+            onClick={handleRunRules}
+            disabled={running}
+            className={`flex items-center gap-2 text-sm font-medium px-5 py-2.5 rounded-lg transition-all shadow-sm disabled:opacity-60 ${
+              completed
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                : "bg-blue-600 hover:bg-blue-700 text-white"
+            }`}
+          >
+            {running ? (
+              <>
+                <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Running&hellip;
+              </>
+            ) : completed ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Done
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Run Pipeline
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
+      {/* Flow */}
       {isLoading ? (
-        <div className="flex gap-4">
+        <div className="flex gap-10 items-start">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="w-52 h-64 bg-gray-100 rounded-xl animate-pulse shrink-0" />
+            <div key={i} className="w-36 h-36 bg-slate-100 rounded-full animate-pulse shrink-0" />
           ))}
         </div>
       ) : (
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-4 overflow-x-auto kanban-scroll pb-4 flex-1">
-            {data?.columns?.map((col) => (
-              <KanbanColumn
-                key={col.stage.id}
-                stage={col.stage}
-                leads={col.leads}
-                total={col.total}
-              />
-            ))}
-          </div>
-        </DragDropContext>
+        <PipelineFlow
+          columns={pipelineData?.columns}
+          rules={rules}
+          running={running}
+          completed={completed}
+          totalLeads={fieldValues?.total ?? null}
+          runningStageId={runningStageId}
+          completedStageIds={completedStageIds}
+          onAddRule={handleAddRule}
+          onEditRule={handleEditRule}
+          onDeleteRule={handleDeleteRule}
+          onUpload={() => setUploadOpen(true)}
+          onRunStage={handleRunStage}
+        />
       )}
+
+      {/* Rule drawer */}
+      <RuleDrawer
+        open={drawerOpen}
+        onClose={() => { setDrawerOpen(false); setEditingRule(null); }}
+        initial={editingRule}
+        targetStageId={targetStageId}
+        targetStageName={targetStageName}
+        stages={stages}
+        fieldValues={fieldValues}
+        availableFields={availableFields}
+        onSave={handleSaveRule}
+      />
+
+      {/* Upload modal */}
+      <UploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} />
     </div>
   );
 }

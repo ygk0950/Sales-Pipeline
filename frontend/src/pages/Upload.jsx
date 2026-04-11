@@ -53,7 +53,7 @@ function SeverityIcon({ severity }) {
   return <span className="text-blue-400 font-bold mr-2">i</span>;
 }
 
-export default function Upload() {
+export default function Upload({ onDone }) {
   const [step, setStep] = useState(1);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -449,7 +449,11 @@ export default function Upload() {
           )}
           <div className="flex justify-center gap-3">
             <button onClick={resetAll} className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Upload Another</button>
-            <Link to="/pipeline" className="px-6 py-2 text-sm bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">View Pipeline &rarr;</Link>
+            {onDone ? (
+              <button onClick={onDone} className="px-6 py-2 text-sm bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">View Pipeline &rarr;</button>
+            ) : (
+              <Link to="/pipeline" className="px-6 py-2 text-sm bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">View Pipeline &rarr;</Link>
+            )}
           </div>
         </div>
       )}

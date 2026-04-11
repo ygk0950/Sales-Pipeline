@@ -41,6 +41,23 @@ export function useEvaluateRules() {
       qc.invalidateQueries({ queryKey: ["pipeline"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["rules"] });
+      qc.invalidateQueries({ queryKey: ["field-values"] });
+    },
+  });
+}
+
+export function useEvaluateStageRules() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (stageId) =>
+      api.post(`/api/rules/evaluate?stage_id=${stageId}`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pipeline"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["rules"] });
+      qc.invalidateQueries({ queryKey: ["field-values"] });
     },
   });
 }

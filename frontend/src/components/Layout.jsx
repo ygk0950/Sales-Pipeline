@@ -1,10 +1,25 @@
 import { NavLink, Outlet } from "react-router-dom";
 
+function IconDashboard() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+      <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+    </svg>
+  );
+}
+function IconPipeline() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5" cy="12" r="3" /><circle cx="19" cy="12" r="3" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+    </svg>
+  );
+}
+
 const nav = [
-  { to: "/", label: "Dashboard", icon: "📊" },
-  { to: "/pipeline", label: "Pipeline", icon: "🗂️" },
-  { to: "/upload", label: "Upload Leads", icon: "📤" },
-  { to: "/rules", label: "Rules", icon: "⚙️" },
+  { to: "/", label: "Dashboard", Icon: IconDashboard },
+  { to: "/pipeline", label: "Pipeline", Icon: IconPipeline },
 ];
 
 export default function Layout() {
@@ -17,7 +32,7 @@ export default function Layout() {
           <p className="text-xs text-gray-400 mt-0.5">Sales Pipeline</p>
         </div>
         <nav className="flex-1 p-3 space-y-1">
-          {nav.map(({ to, label, icon }) => (
+          {nav.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -30,7 +45,7 @@ export default function Layout() {
                 }`
               }
             >
-              <span>{icon}</span>
+              <Icon />
               {label}
             </NavLink>
           ))}

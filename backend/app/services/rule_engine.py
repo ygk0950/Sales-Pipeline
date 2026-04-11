@@ -221,6 +221,54 @@ def evaluate_all(db: Session) -> dict:
     return moved_counts
 
 
+def evaluate_for_stage(db: Session, target_stage_id: int) -> dict:
+    """Run rules for a single target stage only — moves leads from the immediately preceding stage."""
+    stages = {s.name: s for s in db.query(PipelineStage).all()}
+    stages_by_id = {s.id: s for s in stages.values()}
+
+    target_stage = stages_by_id.get(target_stage_id)
+    if not target_stage or target_stage.name not in ADVANCEABLE:
+        return {}
+
+    # Find the stage immediately before the target in pipeline order
+    idx = PIPELINE_ORDER.index(target_stage.name)
+    source_stage_name = PIPELINE_ORDER[idx - 1]
+    source_stage = stages.get(source_stage_name)
+    if not source_stage:
+        return {}
+
+    # Rules targeting this stage, sorted by priority
+    rules = (
+        db.query(Rule)
+        .filter(Rule.target_stage_id == target_stage_id, Rule.is_active == True)
+        .order_by(Rule.priority.desc())
+        .all()
+    )
+    if not rules:
+        return {}
+
+    # Only leads currently in the source stage
+    leads = db.query(Lead).filter(Lead.stage_id == source_stage.id).all()
+
+    moved = 0
+    for lead in leads:
+        for rule in rules:
+            if evaluate_rule(lead, rule):
+                db.add(StageHistory(
+                    lead_id=lead.id,
+                    from_stage_id=source_stage.id,
+                    to_stage_id=target_stage_id,
+                    rule_id=rule.id,
+                ))
+                lead.stage_id = target_stage_id
+                lead.qualified_at = datetime.utcnow()
+                moved += 1
+                break
+
+    db.commit()
+    return {target_stage_id: moved}
+
+
 def preview_rule(db: Session, rule: Rule, limit: int = 20) -> tuple[int, list[Lead]]:
     """Dry-run: return leads that would match this rule."""
     terminal_ids = {
