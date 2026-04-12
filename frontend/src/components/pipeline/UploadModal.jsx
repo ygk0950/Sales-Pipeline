@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import Upload from "../../pages/Upload";
 
-export default function UploadModal({ open, onClose }) {
+export default function UploadModal({ open, onClose, onSuccess }) {
   // Close on Escape
   useEffect(() => {
     if (!open) return;
@@ -11,6 +11,11 @@ export default function UploadModal({ open, onClose }) {
   }, [open, onClose]);
 
   if (!open) return null;
+
+  function handleDone() {
+    onSuccess?.();
+    onClose();
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -25,7 +30,7 @@ export default function UploadModal({ open, onClose }) {
         >
           &#x2715;
         </button>
-        <Upload onDone={onClose} />
+        <Upload onDone={handleDone} />
       </div>
     </div>
   );

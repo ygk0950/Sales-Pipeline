@@ -58,7 +58,7 @@ export default function StageNode({
   stage, leadCount, rules, isEntry, isTerminal,
   onAddRule, onEditRule, onDeleteRule,
   running, completed,
-  onRun, stageRunning, stageCompleted,
+  onRun, onFlush, stageRunning, stageCompleted,
 }) {
   const isAdvanceable = !isEntry && !isTerminal;
 
@@ -104,37 +104,6 @@ export default function StageNode({
         )}
       </div>
 
-      {/* ── Per-stage Run button ─────────────────────────────────────────── */}
-      {isAdvanceable && onRun && (
-        <button
-          type="button"
-          onClick={() => onRun(stage.id)}
-          disabled={isNodeRunning}
-          className={`mt-2 flex items-center gap-1 text-[11px] font-semibold px-3 py-1 rounded-full border transition-all disabled:opacity-50 ${
-            isNodeCompleted
-              ? "border-emerald-300 text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
-              : "border-slate-200 text-slate-500 bg-white hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50"
-          }`}
-        >
-          {isNodeRunning ? (
-            <>
-              <span className="inline-block w-2.5 h-2.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              Running
-            </>
-          ) : isNodeCompleted ? (
-            <>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              Done
-            </>
-          ) : (
-            <>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              Run
-            </>
-          )}
-        </button>
-      )}
-
       {/* ── Stage name ───────────────────────────────────────────────────── */}
       <span className={`mt-1.5 text-xs font-semibold tracking-tight text-center ${isNodeCompleted ? "text-emerald-700" : "text-slate-700"}`}>
         {isEntry ? "Imported" : stage.name}
@@ -142,6 +111,56 @@ export default function StageNode({
 
       {isEntry    && <span className="text-[10px] text-slate-400 mt-0.5">Total leads</span>}
       {isTerminal && <span className="text-[10px] text-slate-400 mt-0.5">Manual only</span>}
+
+      {/* ── Run + Flush button pair ──────────────────────────────────────── */}
+      {isAdvanceable && (onRun || onFlush) && (
+        <div className="mt-2 flex items-center gap-1">
+          {onRun && (
+            <button
+              type="button"
+              onClick={() => onRun(stage.id)}
+              disabled={isNodeRunning}
+              className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-l-full border-y border-l transition-all disabled:opacity-50 ${
+                isNodeCompleted
+                  ? "border-emerald-300 text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
+                  : "border-slate-200 text-slate-500 bg-white hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50"
+              }`}
+            >
+              {isNodeRunning ? (
+                <>
+                  <span className="inline-block w-2.5 h-2.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Running
+                </>
+              ) : isNodeCompleted ? (
+                <>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Done
+                </>
+              ) : (
+                <>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Run
+                </>
+              )}
+            </button>
+          )}
+
+          {onFlush && (
+            <button
+              type="button"
+              onClick={() => onFlush(stage.id)}
+              disabled={isNodeRunning || leadCount === 0}
+              className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-r-full border transition-all border-slate-200 text-slate-400 bg-white hover:border-rose-300 hover:text-rose-500 hover:bg-rose-50 disabled:opacity-30 disabled:pointer-events-none"
+              title="Move all leads back to previous stage"
+            >
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/>
+              </svg>
+              Reset
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Rules section ─────────────────────────────────────────────────── */}
       {isAdvanceable && (

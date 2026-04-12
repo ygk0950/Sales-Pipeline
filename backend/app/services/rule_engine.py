@@ -269,6 +269,37 @@ def evaluate_for_stage(db: Session, target_stage_id: int) -> dict:
     return {target_stage_id: moved}
 
 
+def flush_stage(db: Session, stage_id: int) -> int:
+    """Move all leads in stage_id back to the immediately preceding stage."""
+    stages = {s.name: s for s in db.query(PipelineStage).all()}
+    stages_by_id = {s.id: s for s in stages.values()}
+
+    stage = stages_by_id.get(stage_id)
+    if not stage or stage.name not in PIPELINE_ORDER:
+        return 0
+
+    idx = PIPELINE_ORDER.index(stage.name)
+    if idx == 0:
+        return 0  # Already at the first stage, nothing to flush back to
+
+    prev_stage = stages.get(PIPELINE_ORDER[idx - 1])
+    if not prev_stage:
+        return 0
+
+    leads = db.query(Lead).filter(Lead.stage_id == stage_id).all()
+    for lead in leads:
+        db.add(StageHistory(
+            lead_id=lead.id,
+            from_stage_id=stage_id,
+            to_stage_id=prev_stage.id,
+            rule_id=None,
+        ))
+        lead.stage_id = prev_stage.id
+
+    db.commit()
+    return len(leads)
+
+
 def preview_rule(db: Session, rule: Rule, limit: int = 20) -> tuple[int, list[Lead]]:
     """Dry-run: return leads that would match this rule."""
     terminal_ids = {

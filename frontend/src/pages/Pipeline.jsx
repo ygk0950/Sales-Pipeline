@@ -1,7 +1,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { useQuery } from "@tanstack/react-query";
-import { usePipeline, useStages } from "../hooks/usePipeline";
+import { usePipeline, useStages, useFlushStage, useResetAllLeads } from "../hooks/usePipeline";
 import { useRules, useCreateRule, useUpdateRule, useDeleteRule, useEvaluateRules, useEvaluateStageRules } from "../hooks/useRules";
 import PipelineFlow from "../components/pipeline/PipelineFlow";
 import RuleDrawer from "../components/pipeline/RuleDrawer";
@@ -26,9 +26,12 @@ export default function Pipeline() {
   const deleteRule      = useDeleteRule();
   const evaluate        = useEvaluateRules();
   const evaluateStage   = useEvaluateStageRules();
+  const flushStage      = useFlushStage();
+  const resetAllLeads   = useResetAllLeads();
 
   // UI state
   const [running,           setRunning]           = useState(false);
+  const [uploadCompleted,   setUploadCompleted]   = useState(false);
   const [completed,         setCompleted]         = useState(false);
   const [runningStageId,    setRunningStageId]    = useState(null);
   const [completedStageIds, setCompletedStageIds] = useState(new Set());
@@ -77,6 +80,31 @@ export default function Pipeline() {
     }
   }
 
+  async function handleResetAllLeads() {
+    if (!confirm("Delete all leads? This cannot be undone.")) return;
+    try {
+      const result = await resetAllLeads.mutateAsync();
+      toast.success(`${result.deleted} lead${result.deleted !== 1 ? "s" : ""} deleted`);
+      setUploadCompleted(false);
+      setCompleted(false);
+      setCompletedStageIds(new Set());
+    } catch {
+      toast.error("Failed to reset leads");
+    }
+  }
+
+  async function handleFlushStage(stageId) {
+    const stageName = stages?.find((s) => s.id === stageId)?.name ?? "stage";
+    if (!confirm(`Move all leads in ${stageName} back to the previous stage?`)) return;
+    try {
+      const result = await flushStage.mutateAsync(stageId);
+      toast.success(`${result.flushed} lead${result.flushed !== 1 ? "s" : ""} moved back`);
+      setCompletedStageIds((s) => { const n = new Set(s); n.delete(stageId); return n; });
+    } catch {
+      toast.error("Failed to flush stage");
+    }
+  }
+
   async function handleRunStage(stageId) {
     setRunningStageId(stageId);
     setCompletedStageIds((s) => { const n = new Set(s); n.delete(stageId); return n; });
@@ -84,7 +112,6 @@ export default function Pipeline() {
       const result = await evaluateStage.mutateAsync(stageId);
       toast.success(`${result.leads_moved} lead${result.leads_moved !== 1 ? "s" : ""} moved`);
       setCompletedStageIds((s) => new Set([...s, stageId]));
-      setTimeout(() => setCompletedStageIds((s) => { const n = new Set(s); n.delete(stageId); return n; }), 3000);
     } catch {
       toast.error("Failed to run stage");
     } finally {
@@ -95,11 +122,11 @@ export default function Pipeline() {
   async function handleRunRules() {
     setRunning(true);
     setCompleted(false);
+    setCompletedStageIds(new Set());
     try {
       const result = await evaluate.mutateAsync();
       toast.success(`Pipeline run \u2014 ${result.leads_moved} leads moved`);
       setCompleted(true);
-      setTimeout(() => setCompleted(false), 3000);
     } catch {
       toast.error("Failed to run pipeline");
     } finally {
@@ -172,8 +199,11 @@ export default function Pipeline() {
           onAddRule={handleAddRule}
           onEditRule={handleEditRule}
           onDeleteRule={handleDeleteRule}
+          uploadCompleted={uploadCompleted}
           onUpload={() => setUploadOpen(true)}
+          onResetUpload={handleResetAllLeads}
           onRunStage={handleRunStage}
+          onFlushStage={handleFlushStage}
         />
       )}
 
@@ -191,7 +221,11 @@ export default function Pipeline() {
       />
 
       {/* Upload modal */}
-      <UploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} />
+      <UploadModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onSuccess={() => setUploadCompleted(true)}
+      />
     </div>
   );
 }

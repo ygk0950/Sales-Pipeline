@@ -15,7 +15,8 @@ function FlexConnector({ animated }) {
 export default function PipelineFlow({
   columns, rules, running, completed, totalLeads,
   runningStageId, completedStageIds,
-  onAddRule, onEditRule, onDeleteRule, onUpload, onRunStage,
+  uploadCompleted,
+  onAddRule, onEditRule, onDeleteRule, onUpload, onResetUpload, onRunStage, onFlushStage,
 }) {
   const rulesByStage = {};
   (rules || []).forEach((r) => {
@@ -25,27 +26,31 @@ export default function PipelineFlow({
 
   if (!columns?.length) return null;
 
-  // Render in pipeline order: regular stages first, then Won, then Lost
-  const mainStages = columns.filter((c) => !["Won", "Lost"].includes(c.stage.name));
+  // "New" stage is merged into the UploadNode — skip it in the flow
+  const mainStages = columns.filter((c) => !["New", "Won", "Lost"].includes(c.stage.name));
   const wonCol     = columns.find((c) => c.stage.name === "Won");
   const lostCol    = columns.find((c) => c.stage.name === "Lost");
 
-  // Build a flat ordered list: UploadNode placeholder, then all stages
   const terminalStages = [wonCol, lostCol].filter(Boolean);
   const allStages = [...mainStages, ...terminalStages];
 
   return (
     <div className="w-full flex items-start overflow-x-hidden">
 
-      {/* Import / Upload node */}
+      {/* Import / Upload node — merged with "Imported" count */}
       <div className="shrink-0">
-        <UploadNode onClick={onUpload} />
+        <UploadNode
+          onClick={onUpload}
+          leadCount={totalLeads ?? 0}
+          uploadCompleted={uploadCompleted}
+          onReset={onResetUpload}
+        />
       </div>
 
       <FlexConnector animated={false} />
 
       {allStages.map((col, i) => {
-        const isEntry    = col.stage.name === "New";
+        const isEntry    = false;
         const isTerminal = ["Won", "Lost"].includes(col.stage.name);
         const isLast     = i === allStages.length - 1;
 
@@ -54,7 +59,7 @@ export default function PipelineFlow({
             <div className="shrink-0">
               <StageNode
                 stage={col.stage}
-                leadCount={isEntry && totalLeads != null ? totalLeads : col.total}
+                leadCount={col.total}
                 rules={rulesByStage[col.stage.id] || []}
                 isEntry={isEntry}
                 isTerminal={isTerminal}
@@ -64,6 +69,7 @@ export default function PipelineFlow({
                 onEditRule={onEditRule}
                 onDeleteRule={onDeleteRule}
                 onRun={onRunStage}
+                onFlush={onFlushStage}
                 stageRunning={runningStageId === col.stage.id}
                 stageCompleted={completedStageIds?.has(col.stage.id)}
               />

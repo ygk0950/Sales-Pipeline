@@ -17,6 +17,7 @@ from ..schemas import (
 from ..services.csv_service import preview_csv, import_csv
 from ..services.mapping_service import auto_map_columns
 from ..services.dq_service import analyze_data_quality
+from ..services.rule_engine import flush_stage
 
 router = APIRouter(prefix="/api/leads", tags=["leads"])
 
@@ -164,6 +165,21 @@ def get_available_fields(db: Session = Depends(get_db)):
         })
 
     return standard + extra_fields
+
+
+@router.post("/flush-stage")
+def flush_stage_leads(stage_id: int, db: Session = Depends(get_db)):
+    count = flush_stage(db, stage_id)
+    return {"flushed": count}
+
+
+@router.delete("/all")
+def delete_all_leads(db: Session = Depends(get_db)):
+    count = db.query(Lead).count()
+    db.query(StageHistory).delete()
+    db.query(Lead).delete()
+    db.commit()
+    return {"deleted": count}
 
 
 @router.get("", response_model=LeadListOut)
