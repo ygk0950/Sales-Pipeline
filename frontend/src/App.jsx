@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import Layout from "./components/Layout";
@@ -22,7 +22,7 @@ export default function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Workspace initialSection="dashboard" />} />
             <Route path="pipeline" element={<Workspace initialSection="pipeline" />} />
-            <Route path="upload" element={<Workspace initialSection="upload" />} />
+            <Route path="upload" element={<Navigate to="/pipeline" replace />} />
             <Route path="rules" element={<Workspace initialSection="rules" />} />
             <Route path="leads/:id" element={<LeadDetail />} />
           </Route>

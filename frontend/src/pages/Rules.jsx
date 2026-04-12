@@ -24,7 +24,7 @@ function DataOverview({ fieldValues, onQuickRule }) {
 
       {total === 0 ? (
         <p className="text-xs text-gray-400 text-center py-4">
-          No leads yet. <Link to="/upload" className="text-blue-600 underline">Upload leads first &rarr;</Link>
+          No leads yet. <Link to="/pipeline" className="text-blue-600 underline">Open pipeline to import leads &rarr;</Link>
         </p>
       ) : (
         <>

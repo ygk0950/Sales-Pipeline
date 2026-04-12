@@ -89,7 +89,7 @@ export default function Dashboard() {
                 <div key={`${c.from_stage}-${c.to_stage}`}>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-600">
-                      {c.from_stage} → {c.to_stage}
+                      {c.from_stage} -&gt; {c.to_stage}
                     </span>
                     <span className="font-semibold text-gray-800">{c.rate}%</span>
                   </div>
