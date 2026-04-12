@@ -7,7 +7,7 @@ Sales pipeline platform — CSV lead upload, no-code rule builder, node-based pi
 ```bash
 # Backend (always use full Anaconda path — `python` command is a broken Windows Store stub)
 cd backend
-/c/Users/DELL/anaconda3/python.exe -m uvicorn app.main:app --reload --port 8001
+/c/Users/DELL/anaconda3/python.exe -m uvicorn app.main:app --port 8001
 
 # Frontend
 cd frontend
