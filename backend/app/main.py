@@ -19,7 +19,8 @@ PIPELINE_STAGES = [
     ("SQL", 2),
     ("Opportunity", 3),
     ("Won", 4),
-    ("Lost", 5),
+    ("Nurture", 5),
+    ("Lost", 6),
 ]
 
 

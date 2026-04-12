@@ -8,9 +8,11 @@ from ..models import Lead, Rule, PipelineStage, StageHistory
 from ..schemas import RuleCondition
 
 
-PIPELINE_ORDER = ["New", "MQL", "SQL", "Opportunity", "Won", "Lost"]
-# Stages a lead can advance to via rules (not Won/Lost automatically)
+PIPELINE_ORDER = ["New", "MQL", "SQL", "Opportunity", "Won", "Nurture", "Lost"]
+# Stages a lead can advance to via rules — terminal stages are manual-only
 ADVANCEABLE = ["MQL", "SQL", "Opportunity"]
+# Parallel terminal outcomes — all flush back to Opportunity
+TERMINAL_STAGES = {"Won", "Nurture", "Lost"}
 
 
 def _get_lead_field(lead: Lead, field: str):
@@ -177,8 +179,8 @@ def evaluate_all(db: Session) -> dict:
         stages[name] for name in ADVANCEABLE if name in stages
     ]
 
-    # Load leads that are not yet Won or Lost
-    terminal_ids = {stages[n].id for n in ["Won", "Lost"] if n in stages}
+    # Load leads that are not yet in a terminal stage
+    terminal_ids = {stages[n].id for n in TERMINAL_STAGES if n in stages}
     leads = db.query(Lead).filter(Lead.stage_id.notin_(terminal_ids)).all()
 
     moved_counts: dict[int, int] = {}
@@ -278,11 +280,14 @@ def flush_stage(db: Session, stage_id: int) -> int:
     if not stage or stage.name not in PIPELINE_ORDER:
         return 0
 
-    idx = PIPELINE_ORDER.index(stage.name)
-    if idx == 0:
-        return 0  # Already at the first stage, nothing to flush back to
-
-    prev_stage = stages.get(PIPELINE_ORDER[idx - 1])
+    # All terminal stages (Won, Nurture, Lost) flush back to Opportunity
+    if stage.name in TERMINAL_STAGES:
+        prev_stage = stages.get("Opportunity")
+    else:
+        idx = PIPELINE_ORDER.index(stage.name)
+        if idx == 0:
+            return 0
+        prev_stage = stages.get(PIPELINE_ORDER[idx - 1])
     if not prev_stage:
         return 0
 
